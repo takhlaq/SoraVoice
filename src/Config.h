@@ -42,6 +42,8 @@ struct CConfig
 	DEFINE_CONFIG(SkipVoice, 1);
 	DEFINE_CONFIG(DisableDialogSE, 1);
 	DEFINE_CONFIG(DisableDududu, 1);
+	DEFINE_CONFIG(TurboMultiplier, 2);
+	DEFINE_CONFIG(FPSPatches, 1);
 	DEFINE_CONFIG_WMAX(ShowInfo, ShowInfo_On, 2);
 
 	DEFINE_STRCONFIG(FontName, "Microsoft Yahei", 63);

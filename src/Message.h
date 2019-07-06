@@ -29,6 +29,10 @@ struct CMessage {
 
 	const char * DisableDududu;
 
+	const char * TurboMultiplier;
+
+	const char * FPSPatches;
+
 	const char * ShowInfoSwitch[3];
 
 	const char * ShowInfo;
@@ -55,6 +59,10 @@ struct CMessage {
 		const char * DisableDialogSE;
 
 		const char * DisableDududu;
+		
+		const char * TurboMultiplier;
+
+		const char * FPSPatches;
 
 		const char * ShowInfo;
 

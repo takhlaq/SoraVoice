@@ -15,6 +15,8 @@ namespace Draw {
 		SkipVoice,
 		DisableDialogSE,
 		DisableDududu,
+		Turbo,
+		FPSPatches,
 
 		ConfigReset,
 

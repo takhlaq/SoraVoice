@@ -126,6 +126,9 @@ bool CConfig::LoadConfig(const char * configFn, bool create)
 	GET_VALUE_BOOLFIX(DisableDialogSE, kv);
 	GET_VALUE_BOOLFIX(DisableDududu, kv);
 
+	GET_VALUE(TurboMultiplier, kv);
+	GET_VALUE_BOOLFIX(FPSPatches, kv);
+
 	GET_VALUE_MAXFIX(ShowInfo, kv);
 	GET_VALUE(FontName, kv);
 	GET_VALUE(FontColor, kv);
@@ -162,6 +165,8 @@ bool CConfig::SaveConfig(const char * configFn) const
 	OUTPUT_VALUE(SkipVoice, ofs);
 	OUTPUT_VALUE(DisableDialogSE, ofs);
 	OUTPUT_VALUE(DisableDududu, ofs);
+	OUTPUT_VALUE(TurboMultiplier, ofs);
+	OUTPUT_VALUE(FPSPatches, ofs);
 	OUTPUT_VALUE(ShowInfo, ofs);
 	ofs << '\n';
 
@@ -201,6 +206,9 @@ void CConfig::load_default(bool all)
 	SET_DEFAULT(SkipVoice);
 	SET_DEFAULT(DisableDialogSE);
 	SET_DEFAULT(DisableDududu);
+
+	SET_DEFAULT(TurboMultiplier);
+	SET_DEFAULT(FPSPatches);
 
 	SET_DEFAULT(ShowInfo);
 	SET_DEFAULT_STR(FontName);

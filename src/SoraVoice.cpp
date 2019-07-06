@@ -25,6 +25,9 @@
 #include <cstring>
 
 #include <dinput.h>
+
+#include "subhook/subhook.h"
+
 #ifndef DID
 #define DID IDirectInputDevice
 #endif // !DID
@@ -79,6 +82,11 @@ constexpr int KEY_ALLINFO = DIK_BACKSLASH;
 constexpr int KEY_RESETA = DIK_LBRACKET;
 constexpr int KEY_RESETB = DIK_RBRACKET;
 
+constexpr int KEY_TURBO_KEYBOARD = DIK_LCONTROL;
+constexpr int KEY_TURBO_UP = DIK_1;
+constexpr int KEY_TURBO_DOWN = DIK_2;
+constexpr int KEY_TOGGLE_60FPS = DIK_3;
+
 constexpr unsigned INFO_TIME = 3000;
 constexpr unsigned HELLO_TIME = 8000;
 constexpr unsigned INFINITY_TIME = Draw::ShowTimeInfinity;
@@ -87,6 +95,10 @@ constexpr unsigned REMAIN_TIME = 2000;
 constexpr unsigned TIME_PREC = 16;
 
 constexpr int KEYS_NUM = 256;
+
+bool ZeroJP{ false };
+bool joypadTurbo{ false };
+bool turbo{ false };
 
 struct Keys {
 	const char* const &keys;
@@ -110,11 +122,11 @@ struct AutoPlay {
 	unsigned time_autoplayv = 0;
 
 	AutoPlay(unsigned& now, unsigned &count_ch,
-			unsigned &wait, unsigned &time_textbeg, unsigned &time_textend,
-			unsigned &waitv)
-	:now(now),
-	count_ch(count_ch), wait(wait), time_textbeg(time_textbeg), time_textend(time_textend),
-	waitv(waitv) {
+		unsigned &wait, unsigned &time_textbeg, unsigned &time_textend,
+		unsigned &waitv)
+		:now(now),
+		count_ch(count_ch), wait(wait), time_textbeg(time_textbeg), time_textend(time_textend),
+		waitv(waitv) {
 	}
 };
 
@@ -241,7 +253,7 @@ void SoraVoice::Play(const char* t)
 			return;
 		}
 	}
-	
+
 	std::string oggFileName = VOICEFILE_DIR;
 	if (str_vid.length() == BGMVOICEID_LEN) {
 		oggFileName.append(VOICEFILE_PREFIX_BGM).append(str_vid.c_str() + sizeof(VOICEFILE_PREFIX_BGM) - 1);
@@ -313,6 +325,72 @@ void SoraVoice::Stop()
 	VC_aup->waitv = 0;
 	VC_aup->count_ch = 0;
 	VC_aup->time_autoplay = 0;
+}
+
+void FPSPatches(bool fps60)
+{
+	// 60 FPS Stuff
+
+	char* SleepAdd1 = (char*)0x7ECD60;
+	char* SleepAdd2 = (char*)0x7ECDF1;
+
+	char* SomeTimeMultiplier1 = (char*)0x744B5A;
+	char* SomeTimeMultiplier2 = (char*)0x744B49;
+
+	double** MapObjectSpeedPointer = (double**)0x725C2A;
+
+	DWORD old;
+	// Half the sleeping on the rendering/presenting function (16 to 8):
+	if (VirtualProtect(SleepAdd1, 1, PAGE_EXECUTE_READWRITE, &old) != 0) {
+		*SleepAdd1 = (char)(fps60 ? 8 : 16);
+	}
+	else {
+		LOG("Could not unlock SleepAdd1 to patch it");
+	}
+
+	if (VirtualProtect(SleepAdd2, 1, PAGE_EXECUTE_READWRITE, &old) != 0) {
+		*SleepAdd2 = (char)(fps60 ? 8 : 16);
+	}
+	else {
+		LOG("Could not unlock SleepAdd2 to patch it");
+	}
+
+	// Half this thing that appearantly has great control over the speed of the game (33/34 to 16/17)
+	if (VirtualProtect(SomeTimeMultiplier1, 1, PAGE_EXECUTE_READWRITE, &old) != 0) {
+		*SomeTimeMultiplier1 = (char)(fps60 ? 16 : 33);
+	}
+	else {
+		LOG("Could not unlock SomeTimeMultiplier1 to patch it");
+	}
+
+	if (VirtualProtect(SomeTimeMultiplier2, 1, PAGE_EXECUTE_READWRITE, &old) != 0) {
+		*SomeTimeMultiplier2 = (char)(fps60 ? 17 : 34);
+	}
+	else {
+		LOG("Could not unlock SomeTimeMultiplier2 to patch it");
+	}
+
+	static double DoubleOne = 1.0;
+	static double DoubleHalf = 0.5;
+	// Slow down some map objects to compensate FPS
+	if (VirtualProtect(MapObjectSpeedPointer, 4, PAGE_EXECUTE_READWRITE, &old) != 0) {
+		*MapObjectSpeedPointer = (fps60 ? &DoubleHalf : &DoubleOne);
+	}
+	else {
+		LOG("Could not unlock MapObjectSpeedPointer to patch it");
+	}
+}
+
+void SoraVoice::JoypadInput(DIJOYSTATE* joypadState)
+{
+	if (joypadState->lZ >= (32768 + 100) || joypadState->lZ <= (32768 - 100))
+	{
+		joypadTurbo = true;
+	}
+	else
+	{
+		joypadTurbo = false;
+	}
 }
 
 void SoraVoice::Input()
@@ -461,6 +539,53 @@ void SoraVoice::Input()
 			LOG("Set mute : %d", SV.status.mute);
 		}//keys[KEY_VOLUME_UP] && keys[KEY_VOLUME_DOWN]
 
+		if (ZeroJP) {
+			if (keys[KEY_TURBO_UP] && !last[KEY_TURBO_UP] && !keys[KEY_TURBO_DOWN]) {
+				Config.TurboMultiplier -= 1;
+
+				if (Config.TurboMultiplier < 2) {
+					Config.TurboMultiplier = 2;
+				}
+
+				needsave = true;
+
+				if (show_info) {
+					AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.TurboMultiplier, Config.TurboMultiplier);
+				}
+
+				LOG("Set Turbo : %d", Config.TurboMultiplier);
+			} //if(KEY_TURBO_UP)
+			else if (keys[KEY_TURBO_DOWN] && !last[KEY_TURBO_DOWN] && !keys[KEY_TURBO_UP]) {
+				Config.TurboMultiplier += 1;
+
+				if (show_info) {
+					AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.TurboMultiplier, Config.TurboMultiplier);
+				}
+
+				needsave = true;
+
+				LOG("Set Turbo : %d", Config.TurboMultiplier);
+			}//if(KEY_TURBO_DOWN)
+
+			if (keys[KEY_TURBO_KEYBOARD]) {
+				turbo = true;
+			}
+			else {
+				turbo = false;
+			}//if(KEY_TURBO_KEYBOARD)
+
+			if (keys[KEY_TOGGLE_60FPS] && !last[KEY_TOGGLE_60FPS]) {
+				Config.FPSPatches = 1 - Config.FPSPatches;
+				needsave = true;
+
+				FPSPatches(Config.FPSPatches);
+
+				if (show_info) {
+					AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.FPSPatches, Message.Switch[Config.FPSPatches]);
+				}
+			}
+		}
+
 		if(SV.game == AO) {
 			if (keys[KEY_ORIVOLPCT_UP] && !last[KEY_ORIVOLPCT_UP] && !keys[KEY_ORIVOLPCT_DOWN]) {
 				needsetvolume = Config.OriVolumePercent != ORIVOLPCT_STEP;
@@ -591,7 +716,7 @@ void SoraVoice::Input()
 				Draw::RemoveInfo(InfoType::AutoPlayMark);
 				Draw::RemoveInfo(InfoType::Hello);
 			}
-			else { 
+			else {
 				Draw::RemoveInfo(InfoType::All);
 			}
 			AddInfo(InfoType::InfoOnoff, info_time, Config.FontColor, Message.ShowInfo, Message.ShowInfoSwitch[Config.ShowInfo]);
@@ -604,8 +729,8 @@ void SoraVoice::Input()
 		if (SV.status.playing) {
 			if (!SV.status.mute) {
 				int volume = SV.status.playingOri ?
-							Config.Volume * Config.OriVolumePercent / 100 :
-							Config.Volume;
+					Config.Volume * Config.OriVolumePercent / 100 :
+					Config.Volume;
 				if (volume > Config.MAX_Volume) volume = Config.MAX_Volume;
 				Player::SetVolume(volume);
 			}
@@ -637,7 +762,7 @@ void SoraVoice::Show(void* pD3DD)
 	if (SV.status.first_text) {
 		SV.status.first_text = 0;
 		if (Config.ShowInfo == CConfig::ShowInfo_WithMark && isAutoPlaying()) {
-			AddInfo(InfoType::AutoPlayMark, Draw::ShowTimeInfinity, Config.FontColor ,Message.AutoPlayMark);
+			AddInfo(InfoType::AutoPlayMark, Draw::ShowTimeInfinity, Config.FontColor, Message.AutoPlayMark);
 		}
 	}
 
@@ -662,7 +787,7 @@ void SoraVoice::Show(void* pD3DD)
 			SV.order.disableDududu = 0;
 		}
 
-		if (aup->wait && aup->time_autoplay <= aup->now 
+		if (aup->wait && aup->time_autoplay <= aup->now
 			&& (!aup->waitv || aup->time_autoplayv <= aup->now)) {
 			LOG("now = %d", aup->now);
 			LOG("waitv = %d", aup->waitv);
@@ -693,6 +818,25 @@ void SoraVoice::Show(void* pD3DD)
 	}
 }
 
+subhook_t GetSpeedMultiplier_hook;
+typedef signed int(__thiscall* GetSpeedMultiplier_t)(void*);
+
+// Had to do this class because the compiler would otherwise whine about
+// __thiscall being outside of a class. Intellisense still whines though,
+// but it compiles.
+class DummyClass
+{
+public:
+	static signed int __thiscall GetSpeedMultiplier(void* _this)
+	{
+		if (joypadTurbo || turbo) {
+			return Config.TurboMultiplier;
+		}
+
+		return ((GetSpeedMultiplier_t)subhook_get_trampoline(GetSpeedMultiplier_hook))(_this);
+	}
+};
+
 bool SoraVoice::Init() {
 	if (SV.status.startup || SV.status.ended) return false;
 	VC_isZa = SV.series == SERIES_ZEROAO;
@@ -712,14 +856,26 @@ bool SoraVoice::Init() {
 
 	VC_keys = new Keys(SV.addrs.p_keys, *SV.addrs.p_did);
 	VC_aup = new AutoPlay(SV.rcd.now, SV.rcd.count_ch, SV.status.wait,
-						SV.rcd.time_textbeg, SV.rcd.time_textend, SV.status.waitv);
+		SV.rcd.time_textbeg, SV.rcd.time_textend, SV.status.waitv);
 
 	static_assert(CConfig::MAX_Volume == Player::MaxVolume, "Max Volume not same!");
+
+	if (SV.addrs.p_global == (void*)0x00B997F0) {
+		ZeroJP = true;
+		// Hook speed multiplier function
+		GetSpeedMultiplier_hook = subhook_new((void*)0x7F0190, (void*)DummyClass::GetSpeedMultiplier, (subhook_flags_t)0);
+
+		subhook_install(GetSpeedMultiplier_hook);
+
+		if (Config.FPSPatches) {
+			FPSPatches(true);
+		}
+	}
 
 	if(VC_isZa) {
 		if (Config.EnableKeys) {
 			LOG("Now going to hook GetDeviceState...");
-			void* pGetDeviceState = Hook::Hook_DI_GetDeviceState(*SV.addrs.p_did, SoraVoice::Input, (void**)&SV.addrs.p_keys);
+			void* pGetDeviceState = Hook::Hook_DI_GetDeviceState(*SV.addrs.p_did, SoraVoice::Input, (void**)& SV.addrs.p_keys, (ZeroJP ? SoraVoice::JoypadInput : nullptr));
 			if (pGetDeviceState) {
 				LOG("GetDeviceState hooked, old GetDeviceState = 0x%08X", (unsigned)pGetDeviceState);
 			}
@@ -751,6 +907,11 @@ bool SoraVoice::End() {
 	Draw::End();
 	delete VC_keys; VC_keys = nullptr;
 	delete VC_aup; VC_aup = nullptr;
+
+	if (ZeroJP) {
+		subhook_remove(GetSpeedMultiplier_hook);
+		subhook_free(GetSpeedMultiplier_hook);
+	}
 
 	return true;
 }

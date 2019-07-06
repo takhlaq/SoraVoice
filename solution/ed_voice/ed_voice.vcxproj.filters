@@ -32,6 +32,9 @@
     <Filter Include="src\Patch">
       <UniqueIdentifier>{b90338af-5608-4ac9-b645-8284f80f7712}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\subhook">
+      <UniqueIdentifier>{01d4c8d7-822b-47f7-ad01-f042f5b5b79d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\Hook\Hook.h">
@@ -153,6 +156,12 @@
     </ClInclude>
     <ClInclude Include="..\..\src\Patch\FontWidthsPatch.h">
       <Filter>src\Patch</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\subhook\subhook.h">
+      <Filter>src\subhook</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\subhook\subhook_private.h">
+      <Filter>src\subhook</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -278,6 +287,9 @@
     </ClCompile>
     <ClCompile Include="..\..\src\Patch\FontWidthsPatch.cpp">
       <Filter>src\Patch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\subhook\subhook.c">
+      <Filter>src\subhook</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
