@@ -31,6 +31,8 @@ struct CMessage {
 
 	const char * TurboMultiplier;
 
+	const char * TurboJoypadButton;
+
 	const char * FPSPatches;
 
 	const char * ShowInfoSwitch[3];
@@ -61,6 +63,8 @@ struct CMessage {
 		const char * DisableDududu;
 		
 		const char * TurboMultiplier;
+
+		const char * TurboJoypadButton;
 
 		const char * FPSPatches;
 

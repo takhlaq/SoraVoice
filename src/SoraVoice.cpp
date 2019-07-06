@@ -85,6 +85,8 @@ constexpr int KEY_RESETB = DIK_RBRACKET;
 constexpr int KEY_TURBO_KEYBOARD = DIK_LCONTROL;
 constexpr int KEY_TURBO_UP = DIK_1;
 constexpr int KEY_TURBO_DOWN = DIK_2;
+constexpr int KEY_TURBO_JOYPAD_BUTTON_UP = DIK_4;
+constexpr int KEY_TURBO_JOYPAD_BUTTON_DOWN = DIK_5;
 constexpr int KEY_TOGGLE_60FPS = DIK_3;
 
 constexpr unsigned INFO_TIME = 3000;
@@ -383,7 +385,7 @@ void FPSPatches(bool fps60)
 
 void SoraVoice::JoypadInput(DIJOYSTATE* joypadState)
 {
-	if (joypadState->lZ >= (32768 + 100) || joypadState->lZ <= (32768 - 100))
+	if ( (joypadState->lZ >= (32768 + 100) || joypadState->lZ <= (32768 - 100)) || (Config.TurboJoypadButton > 0 && joypadState->rgbButtons[Config.TurboJoypadButton - 1]))
 	{
 		joypadTurbo = true;
 	}
@@ -566,6 +568,47 @@ void SoraVoice::Input()
 
 				LOG("Set Turbo : %d", Config.TurboMultiplier);
 			}//if(KEY_TURBO_DOWN)
+
+			if (keys[KEY_TURBO_JOYPAD_BUTTON_UP] && !last[KEY_TURBO_JOYPAD_BUTTON_UP] && !keys[KEY_TURBO_JOYPAD_BUTTON_DOWN]) {
+				Config.TurboJoypadButton -= 1;
+
+				if (Config.TurboJoypadButton < 0) {
+					Config.TurboJoypadButton = 0;
+				}
+
+				needsave = true;
+
+				if (show_info) {
+					if (Config.TurboJoypadButton == 0) {
+						AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.TurboJoypadButton, Message.Switch[0]);
+					}
+					else {
+						AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.TurboJoypadButton, Config.TurboJoypadButton);
+					}
+				}
+
+				LOG("Set Turbo Joypad button : %d", Config.TurboJoypadButton);
+			} //if(KEY_TURBO_JOYPAD_BUTTON_UP)
+			else if (keys[KEY_TURBO_JOYPAD_BUTTON_DOWN] && !last[KEY_TURBO_JOYPAD_BUTTON_DOWN] && !keys[KEY_TURBO_JOYPAD_BUTTON_UP]) {
+				Config.TurboJoypadButton += 1;
+
+				if (Config.TurboJoypadButton > 32) {
+					Config.TurboJoypadButton = 32;
+				}
+
+				needsave = true;
+
+				if (show_info) {
+					if (Config.TurboMultiplier == 0) {
+						AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.TurboJoypadButton, Message.Switch[0]);
+					}
+					else {
+						AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.TurboJoypadButton, Config.TurboJoypadButton);
+					}
+				}
+
+				LOG("Set Turbo Joypad button : %d", Config.TurboJoypadButton);
+			}//if(KEY_TURBO_JOYPAD_BUTTON_DOWN)
 
 			if (keys[KEY_TURBO_KEYBOARD]) {
 				turbo = true;
@@ -860,7 +903,7 @@ bool SoraVoice::Init() {
 
 	static_assert(CConfig::MAX_Volume == Player::MaxVolume, "Max Volume not same!");
 
-	if (SV.addrs.p_global == (void*)0x00B997F0) {
+	if (SV.game == ZERO && SV.addrs.p_global == (void*)0x00B997F0) {
 		ZeroJP = true;
 		// Hook speed multiplier function
 		GetSpeedMultiplier_hook = subhook_new((void*)0x7F0190, (void*)DummyClass::GetSpeedMultiplier, (subhook_flags_t)0);

@@ -99,6 +99,7 @@ bool CMessage::LoadMessage(const char * resName)
 	SET_MESSAGE(top, AutoPlayVoice);
 	SET_MESSAGE(top, AutoPlayAll);
 	SET_MESSAGE(top, TurboMultiplier);
+	SET_MESSAGE(top, TurboJoypadButton);
 	SET_MESSAGE(top, FPSPatches);
 	SET_MESSAGE(top, ShowInfo);
 	SET_MESSAGE(top, ShowInfoAuto);
@@ -120,6 +121,7 @@ bool CMessage::LoadMessage(const char * resName)
 	SET_MESSAGE_CMT(top, DisableDialogSE);
 	SET_MESSAGE_CMT(top, DisableDududu);
 	SET_MESSAGE_CMT(top, TurboMultiplier);
+	SET_MESSAGE_CMT(top, TurboJoypadButton);
 	SET_MESSAGE_CMT(top, FPSPatches);
 	SET_MESSAGE_CMT(top, ShowInfo);
 	SET_MESSAGE_CMT(top, FontName);
