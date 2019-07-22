@@ -33,6 +33,8 @@ struct CMessage {
 
 	const char * TurboJoypadButton;
 
+	const char * TurboKeyboardKey;
+
 	const char * FPSPatches;
 
 	const char * ShowInfoSwitch[3];
@@ -65,6 +67,8 @@ struct CMessage {
 		const char * TurboMultiplier;
 
 		const char * TurboJoypadButton;
+
+		const char * TurboKeyboardKey;
 
 		const char * FPSPatches;
 

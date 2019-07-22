@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <dinput.h>
+
 #define DEFINE_CONFIG_COMMON(name) static constexpr const char* STR_##name = #name;
 
 #define DEFINE_CONFIG(name, dft) int name; \
@@ -44,6 +46,7 @@ struct CConfig
 	DEFINE_CONFIG(DisableDududu, 1);
 	DEFINE_CONFIG(TurboMultiplier, 2);
 	DEFINE_CONFIG_WMAX(TurboJoypadButton, 0, 32);
+	DEFINE_CONFIG_WMAX(TurboKeyboardKey, DIK_LCONTROL, DIK_MEDIASELECT);
 	DEFINE_CONFIG(FPSPatches, 1);
 	DEFINE_CONFIG_WMAX(ShowInfo, ShowInfo_On, 2);
 

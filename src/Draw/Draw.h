@@ -16,6 +16,7 @@ namespace Draw {
 		DisableDialogSE,
 		DisableDududu,
 		Turbo,
+		TurboRebind,
 		FPSPatches,
 
 		ConfigReset,

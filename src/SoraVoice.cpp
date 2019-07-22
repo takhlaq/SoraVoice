@@ -82,11 +82,10 @@ constexpr int KEY_ALLINFO = DIK_BACKSLASH;
 constexpr int KEY_RESETA = DIK_LBRACKET;
 constexpr int KEY_RESETB = DIK_RBRACKET;
 
-constexpr int KEY_TURBO_KEYBOARD = DIK_LCONTROL;
 constexpr int KEY_TURBO_UP = DIK_1;
 constexpr int KEY_TURBO_DOWN = DIK_2;
 constexpr int KEY_TURBO_JOYPAD_BUTTON_UP = DIK_4;
-constexpr int KEY_TURBO_JOYPAD_BUTTON_DOWN = DIK_5;
+constexpr int KEY_TURBO_KEYBOARD_REBIND = DIK_5;
 constexpr int KEY_TOGGLE_60FPS = DIK_3;
 
 constexpr unsigned INFO_TIME = 3000;
@@ -101,6 +100,9 @@ constexpr int KEYS_NUM = 256;
 bool ZeroJP{ false };
 bool joypadTurbo{ false };
 bool turbo{ false };
+
+// Rebind keyboard turbo key
+bool TurboKeyRebinding{ false };
 
 struct Keys {
 	const char* const &keys;
@@ -408,6 +410,40 @@ void SoraVoice::Input()
 
 	unsigned info_time = INFO_TIME;
 
+	if (TurboKeyRebinding) {
+		for (int i{ 0 }; i != 223; ++i) {
+			switch (i) {
+				case KEY_VOLUME_UP:
+				case KEY_VOLUME_DOWN:
+				case KEY_VOLUME_BIGSTEP1:
+				case KEY_VOLUME_BIGSTEP2:
+				case KEY_ORIVOLPCT_UP:
+				case KEY_ORIVOLPCT_DOWN:
+				case KEY_ORIVOICE:
+				case KEY_AUTOPLAY:
+				case KEY_SKIPVOICE:
+				case KEY_DLGSE:
+				case KEY_DU:
+				case KEY_INFOONOFF:
+				case KEY_ALLINFO:
+				case KEY_TURBO_UP:
+				case KEY_TURBO_DOWN:
+				case KEY_TURBO_JOYPAD_BUTTON_UP:
+				case KEY_TURBO_KEYBOARD_REBIND:
+				case KEY_TOGGLE_60FPS:
+					continue;
+			}
+
+			if (keys[i] && !last[i]) {
+				Config.TurboKeyboardKey = i;
+				needsave = true;
+				AddInfo(InfoType::TurboRebind, INFO_TIME, Config.FontColor, "Turbo key rebinded and saved.");
+				TurboKeyRebinding = false;
+				break;
+			}
+		}
+	}
+
 	if (keys[KEY_ALLINFO]) {
 		info_time = INFINITY_TIME;
 		if (!last[KEY_ALLINFO]) {
@@ -569,10 +605,10 @@ void SoraVoice::Input()
 				LOG("Set Turbo : %d", Config.TurboMultiplier);
 			}//if(KEY_TURBO_DOWN)
 
-			if (keys[KEY_TURBO_JOYPAD_BUTTON_UP] && !last[KEY_TURBO_JOYPAD_BUTTON_UP] && !keys[KEY_TURBO_JOYPAD_BUTTON_DOWN]) {
-				Config.TurboJoypadButton -= 1;
+			if (keys[KEY_TURBO_JOYPAD_BUTTON_UP] && !last[KEY_TURBO_JOYPAD_BUTTON_UP]) {
+				Config.TurboJoypadButton += 1;
 
-				if (Config.TurboJoypadButton < 0) {
+				if (Config.TurboJoypadButton > 32) {
 					Config.TurboJoypadButton = 0;
 				}
 
@@ -588,34 +624,20 @@ void SoraVoice::Input()
 				}
 
 				LOG("Set Turbo Joypad button : %d", Config.TurboJoypadButton);
-			} //if(KEY_TURBO_JOYPAD_BUTTON_UP)
-			else if (keys[KEY_TURBO_JOYPAD_BUTTON_DOWN] && !last[KEY_TURBO_JOYPAD_BUTTON_DOWN] && !keys[KEY_TURBO_JOYPAD_BUTTON_UP]) {
-				Config.TurboJoypadButton += 1;
+			}
 
-				if (Config.TurboJoypadButton > 32) {
-					Config.TurboJoypadButton = 32;
-				}
+			if (keys[KEY_TURBO_KEYBOARD_REBIND] && !last[KEY_TURBO_KEYBOARD_REBIND]) {
+				TurboKeyRebinding = true;
 
-				needsave = true;
+				AddInfo(InfoType::TurboRebind, INFINITY_TIME, Config.FontColor, "Rebinding turbo key: Press any key to rebind turbo to it.");
+			}
 
-				if (show_info) {
-					if (Config.TurboMultiplier == 0) {
-						AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.TurboJoypadButton, Message.Switch[0]);
-					}
-					else {
-						AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.TurboJoypadButton, Config.TurboJoypadButton);
-					}
-				}
-
-				LOG("Set Turbo Joypad button : %d", Config.TurboJoypadButton);
-			}//if(KEY_TURBO_JOYPAD_BUTTON_DOWN)
-
-			if (keys[KEY_TURBO_KEYBOARD]) {
+			if (keys[Config.TurboKeyboardKey]) {
 				turbo = true;
 			}
 			else {
 				turbo = false;
-			}//if(KEY_TURBO_KEYBOARD)
+			}//if(Config.TurboKeyboardKey)
 
 			if (keys[KEY_TOGGLE_60FPS] && !last[KEY_TOGGLE_60FPS]) {
 				Config.FPSPatches = 1 - Config.FPSPatches;
