@@ -1,4 +1,6 @@
 #pragma once
+#include <Windows.h>
+#include <Psapi.h>
 
 class Pattern {
 public:
@@ -32,6 +34,36 @@ public:
 			else if (this->data[i] != p[i]) return false;
 		}
 		return true;
+	}
+
+	// Author: RangeMachine
+	// Source: https://www.unknowncheats.me/forum/dayz-sa/228971-x64-zscanner-offsets-scanner.html
+	static BOOL Compare( const BYTE* pData, const BYTE* bMask, const char* szMask )
+	{
+		for( ; *szMask; ++szMask, ++pData, ++bMask )
+		{
+			if( *szMask == 'x' && *pData != *bMask )
+				return 0;
+		}
+
+		return ( *szMask ) == NULL;
+	}
+
+	static DWORD64 FindPattern( BYTE* bMask, char* szMask )
+	{
+		MODULEINFO moduleInfo = { 0 };
+		GetModuleInformation( GetCurrentProcess(), GetModuleHandle( NULL ), &moduleInfo, sizeof( MODULEINFO ) );
+
+		DWORD64 dwBaseAddress = (DWORD64)moduleInfo.lpBaseOfDll;
+		DWORD64 dwModuleSize = (DWORD64)moduleInfo.SizeOfImage;
+
+		for( DWORD64 i = 0; i < dwModuleSize; i++ )
+		{
+			if( Compare( (BYTE*)( dwBaseAddress + i ), bMask, szMask ) )
+				return (DWORD64)( dwBaseAddress + i );
+		}
+
+		return 0;
 	}
 	int Legnth() const { return length; };
 

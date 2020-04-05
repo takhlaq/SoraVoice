@@ -25,6 +25,13 @@
 #include <cstring>
 
 #include <dinput.h>
+#include <windows.h>
+#include <psapi.h>
+
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "Patch/Pattern.h"
 
 #include "subhook/subhook.h"
 
@@ -217,6 +224,9 @@ static void stopCallBack(PlayID playID, StopType stopType)
 
 void SoraVoice::Play(const char* t)
 {
+	std::string tStr( t );
+	LOG( "AAAAAAAAAAAAAAAAAAAA: %s", tStr.c_str() );
+
 	if (!SV.status.startup) return;
 
 	if (*t != '#') return;
@@ -268,6 +278,7 @@ void SoraVoice::Play(const char* t)
 	oggFileName.append(VOICEFILE_ATTR);
 
 	int volume = Config.Volume;
+
 
 	if(VC_isZa) {
 		SV.status.playingOri = 0;
@@ -331,57 +342,78 @@ void SoraVoice::Stop()
 	VC_aup->time_autoplay = 0;
 }
 
-void FPSPatches(bool fps60)
+void FPSPatches( bool fps60 )
 {
 	// 60 FPS Stuff
 
-	char* SleepAdd1 = (char*)0x7ECD60;
-	char* SleepAdd2 = (char*)0x7ECDF1;
+	// todo: sig for sleepadd1: 83 C1 10 8B 55 F8 89 8A ? ? ? ? 
+	// todo: sig for sleepadd2: 83 C0 10 8B 4D F8 89 81 ? ? ? ? 83 3D ? ? ? ? ? 
+	// todo: sig for stm1: B8 21 00 00 00 8B 4D F8 
+	// todo: sig for stm2: B8 22 00 00 00 8B 4D F8 
+	// todo: sig for mosp: DC 05 ? ? ? ? 8B 4D 08 D9 99 10 04 00 00
 
-	char* SomeTimeMultiplier1 = (char*)0x744B5A;
-	char* SomeTimeMultiplier2 = (char*)0x744B49;
+	char* SleepAdd1 = (char*)Pattern::FindPattern( (BYTE*)"\x10\x8B\x55\xF8\x89\x8A\x00\xBE\x00\x00\x8B\x45", "xxxxxxxxxxxx" );
+	char* SleepAdd2 = (char*)Pattern::FindPattern( (BYTE*)"\x10\x8B\x4D\xF8\x89\x81\x00\xBE\x00\x00\x83\x3D", "xxxxxxxxxxxx" );
 
-	double** MapObjectSpeedPointer = (double**)0x725C2A;
+	// weird sigs
+	DWORD64 timeMultAddr = Pattern::FindPattern( (BYTE*)"\xB8\x21\x00\x00\x00\x8B\x4D\xF8", "xxxxxxxx" );
+	char* SomeTimeMultiplier1 = 0;
+	if( timeMultAddr )
+		SomeTimeMultiplier1 = (char*)( timeMultAddr + 1 );
+
+	DWORD64 timeMultAddr2 = Pattern::FindPattern( (BYTE*)"\xB8\x22\x00\x00\x00\x8B\x4D\xF8", "xxxxxxxx" );
+	char* SomeTimeMultiplier2 = 0;
+	if( timeMultAddr2 )
+		SomeTimeMultiplier2 = (char*)( timeMultAddr2 + 1 );
+	double** MapObjectSpeedPointer = (double**)Pattern::FindPattern( (BYTE*)"\xE8\xB2\xB1\x00\x8B\x4D\x08\xD9\x99", "xxxxxxxxx" );
+
+	//char* SleepAdd1 = (char*)0x7ECD60;
+	//char* SleepAdd2 = (char*)0x7ECDF1;
+
+	//char* SomeTimeMultiplier1 = (char*)0x744B5A;
+	//char* SomeTimeMultiplier2 = (char*)0x744B49;
+
+	//double** MapObjectSpeedPointer = (double**)0x725C2A;
 
 	DWORD old;
 	// Half the sleeping on the rendering/presenting function (16 to 8):
-	if (VirtualProtect(SleepAdd1, 1, PAGE_EXECUTE_READWRITE, &old) != 0) {
-		*SleepAdd1 = (char)(fps60 ? 8 : 16);
+	if( SleepAdd1 && VirtualProtect( SleepAdd1, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+		*SleepAdd1 = (char)( fps60 ? 4 : 16 );
 	}
 	else {
-		LOG("Could not unlock SleepAdd1 to patch it");
+		LOG( "Could not unlock SleepAdd1 to patch it" );
 	}
 
-	if (VirtualProtect(SleepAdd2, 1, PAGE_EXECUTE_READWRITE, &old) != 0) {
-		*SleepAdd2 = (char)(fps60 ? 8 : 16);
+	if( SleepAdd2 && VirtualProtect( SleepAdd2, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+		*SleepAdd2 = (char)( fps60 ? 4 : 16 );
 	}
 	else {
-		LOG("Could not unlock SleepAdd2 to patch it");
+		LOG( "Could not unlock SleepAdd2 to patch it" );
 	}
 
 	// Half this thing that appearantly has great control over the speed of the game (33/34 to 16/17)
-	if (VirtualProtect(SomeTimeMultiplier1, 1, PAGE_EXECUTE_READWRITE, &old) != 0) {
-		*SomeTimeMultiplier1 = (char)(fps60 ? 16 : 33);
+	if( SomeTimeMultiplier1 && VirtualProtect( SomeTimeMultiplier1, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+		*SomeTimeMultiplier1 = (char)( fps60 ? 16 : 33 );
 	}
 	else {
-		LOG("Could not unlock SomeTimeMultiplier1 to patch it");
+		LOG( "Could not unlock SomeTimeMultiplier1 to patch it" );
 	}
 
-	if (VirtualProtect(SomeTimeMultiplier2, 1, PAGE_EXECUTE_READWRITE, &old) != 0) {
-		*SomeTimeMultiplier2 = (char)(fps60 ? 17 : 34);
+	if( SomeTimeMultiplier2 && VirtualProtect( SomeTimeMultiplier2, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+		*SomeTimeMultiplier2 = (char)( fps60 ? 17 : 34 );
 	}
 	else {
-		LOG("Could not unlock SomeTimeMultiplier2 to patch it");
+		LOG( "Could not unlock SomeTimeMultiplier2 to patch it" );
 	}
 
 	static double DoubleOne = 1.0;
 	static double DoubleHalf = 0.5;
 	// Slow down some map objects to compensate FPS
-	if (VirtualProtect(MapObjectSpeedPointer, 4, PAGE_EXECUTE_READWRITE, &old) != 0) {
-		*MapObjectSpeedPointer = (fps60 ? &DoubleHalf : &DoubleOne);
+	if( MapObjectSpeedPointer && VirtualProtect( MapObjectSpeedPointer, 4, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+		*MapObjectSpeedPointer = ( fps60 ? &DoubleHalf : &DoubleOne );
 	}
 	else {
-		LOG("Could not unlock MapObjectSpeedPointer to patch it");
+		LOG( "Could not unlock MapObjectSpeedPointer to patch it" );
 	}
 }
 
@@ -903,60 +935,64 @@ public:
 };
 
 bool SoraVoice::Init() {
-	if (SV.status.startup || SV.status.ended) return false;
+	if( SV.status.startup || SV.status.ended ) return false;
 	VC_isZa = SV.series == SERIES_ZEROAO;
 
-	if (VC_isZa) {
-		if (!InitSVData()) {
-			LOG("Init SV failed.");
+	if( VC_isZa ) {
+		if( !InitSVData() ) {
+			LOG( "Init SV failed." );
 			return false;
 		}
 	}
 
-	Config.SaveConfig(CONFIG_FILE);
+	Config.SaveConfig( CONFIG_FILE );
 
-	Clock::InitClock(SV.rcd.now, SV.rcd.recent);
+	Clock::InitClock( SV.rcd.now, SV.rcd.recent );
 	Draw::Init();
-	Player::Init(*SV.addrs.p_pDS, stopCallBack);
+	Player::Init( *SV.addrs.p_pDS, stopCallBack );
 
-	VC_keys = new Keys(SV.addrs.p_keys, *SV.addrs.p_did);
-	VC_aup = new AutoPlay(SV.rcd.now, SV.rcd.count_ch, SV.status.wait,
-		SV.rcd.time_textbeg, SV.rcd.time_textend, SV.status.waitv);
+	VC_keys = new Keys( SV.addrs.p_keys, *SV.addrs.p_did );
+	VC_aup = new AutoPlay( SV.rcd.now, SV.rcd.count_ch, SV.status.wait,
+		SV.rcd.time_textbeg, SV.rcd.time_textend, SV.status.waitv );
 
-	static_assert(CConfig::MAX_Volume == Player::MaxVolume, "Max Volume not same!");
+	static_assert( CConfig::MAX_Volume == Player::MaxVolume, "Max Volume not same!" );
 
-	if (SV.game == ZERO && SV.addrs.p_global == (void*)0x00B997F0) {
+	// todo: pattern for speed multiplier is: 55 8B EC 81 EC E4 00 00 00 53 56 57 51 8D BD 1C FF FF FF B9 39 00 00 00 B8 CC CC CC CC F3 AB 59 89 4D F8 C7 45 EC 01 00 00 00 8B 45 F8 
+	void* pSpeedFunc = (void*)Pattern::FindPattern(
+	(BYTE*)"\x55\x8B\xEC\x81\xEC\xE4\x00\x00\x00\x53\x56\x57\x51\x8D\xBD\x1C\xFF\xFF\xFF\xB9\x39\x00\x00\x00\xB8\xCC\xCC\xCC\xCC\xF3\xAB\x59\x89\x4D\xF8\xC7\x45\xEC\x01\x00\x00\x00\x8B\x45\xF8", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+		);
+	if( pSpeedFunc ) {
 		ZeroJP = true;
 		// Hook speed multiplier function
-		GetSpeedMultiplier_hook = subhook_new((void*)0x7F0190, (void*)DummyClass::GetSpeedMultiplier, (subhook_flags_t)0);
+		GetSpeedMultiplier_hook = subhook_new( pSpeedFunc, (void*)DummyClass::GetSpeedMultiplier, (subhook_flags_t)0 );
 
-		subhook_install(GetSpeedMultiplier_hook);
+		subhook_install( GetSpeedMultiplier_hook );
 
-		if (Config.FPSPatches) {
-			FPSPatches(true);
+		if( Config.FPSPatches ) {
+			FPSPatches( true );
 		}
 	}
 
-	if(VC_isZa) {
-		if (Config.EnableKeys) {
-			LOG("Now going to hook GetDeviceState...");
-			void* pGetDeviceState = Hook::Hook_DI_GetDeviceState(*SV.addrs.p_did, SoraVoice::Input, (void**)& SV.addrs.p_keys, (ZeroJP ? SoraVoice::JoypadInput : nullptr));
-			if (pGetDeviceState) {
-				LOG("GetDeviceState hooked, old GetDeviceState = 0x%08X", (unsigned)pGetDeviceState);
+	if( VC_isZa ) {
+		if( Config.EnableKeys ) {
+			LOG( "Now going to hook GetDeviceState..." );
+			void* pGetDeviceState = Hook::Hook_DI_GetDeviceState( *SV.addrs.p_did, SoraVoice::Input, (void**)&SV.addrs.p_keys, ( ZeroJP ? SoraVoice::JoypadInput : nullptr ) );
+			if( pGetDeviceState ) {
+				LOG( "GetDeviceState hooked, old GetDeviceState = 0x%08X", (unsigned)pGetDeviceState );
 			}
 			else {
-				LOG("Hook GetDeviceState failed.");
+				LOG( "Hook GetDeviceState failed." );
 			}
 		}
 	}
 
-	if (Config.ShowInfo) {
-		AddInfo(InfoType::Hello, HELLO_TIME, Config.FontColor, Message.Title);
-		AddInfo(InfoType::Hello, HELLO_TIME, Config.FontColor, Message.Version, DateVersion);
-		AddInfo(InfoType::Hello, HELLO_TIME, Config.FontColor, Message.CurrentTitle, SV.Comment);
+	if( Config.ShowInfo ) {
+		AddInfo( InfoType::Hello, HELLO_TIME, Config.FontColor, Message.Title );
+		AddInfo( InfoType::Hello, HELLO_TIME, Config.FontColor, Message.Version, DateVersion );
+		AddInfo( InfoType::Hello, HELLO_TIME, Config.FontColor, Message.CurrentTitle, SV.Comment );
 	}
 
-	playRandomVoice(SV.p_rnd_vlst);
+	playRandomVoice( SV.p_rnd_vlst );
 
 	VOICEFILE_PREFIX = VC_isZa ? VOICEFILE_PREFIX_ZA : VOICEFILE_PREFIX_ED6;
 	SV.status.startup = true;
