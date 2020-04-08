@@ -365,7 +365,9 @@ void FPSPatches( bool fps60 )
 	char* SomeTimeMultiplier2 = 0;
 	if( timeMultAddr2 )
 		SomeTimeMultiplier2 = (char*)( timeMultAddr2 + 1 );
-	double** MapObjectSpeedPointer = (double**)Pattern::FindPattern( (BYTE*)"\xE8\xB2\xB1\x00\x8B\x4D\x08\xD9\x99", "xxxxxxxxx" );
+
+	DWORD64 mapObjSpeedAddr = Pattern::FindPattern( (BYTE*)"\xDC\x05\x00\x00\x00\x00\x8B\x4D\x08\xD9\x99\x10\x04\x00\x00", "xx????xxxxxxxxx" );
+	double** MapObjectSpeedPointer = (double**)( mapObjSpeedAddr ? mapObjSpeedAddr + 0x02 : 0 );
 
 	//char* SleepAdd1 = (char*)0x7ECD60;
 	//char* SleepAdd2 = (char*)0x7ECDF1;
@@ -944,7 +946,7 @@ bool SoraVoice::Init() {
 			return false;
 		}
 	}
-
+	
 	Config.SaveConfig( CONFIG_FILE );
 
 	Clock::InitClock( SV.rcd.now, SV.rcd.recent );
@@ -972,7 +974,7 @@ bool SoraVoice::Init() {
 			FPSPatches( true );
 		}
 	}
-
+	
 	if( VC_isZa ) {
 		if( Config.EnableKeys ) {
 			LOG( "Now going to hook GetDeviceState..." );

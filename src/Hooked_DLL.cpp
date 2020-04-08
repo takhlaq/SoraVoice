@@ -1,6 +1,13 @@
 #include <ed_voice.h>
 #include <Windows.h>
 
+#include <d3d9/d3d9.h>
+
+#include <cstdint>
+#include <Psapi.h>
+
+#pragma comment lib("d3d9.lib")
+
 #ifdef DINPUT8
 #define DLL_NAME dinput8
 #define API_NAME DirectInput8Create
@@ -58,6 +65,118 @@ static struct {
 using Call_Create = decltype(HOOKED_API)*;
 static Call_Create ori_api = nullptr;
 
+// todo: someday hook this and make borderless windowed mode
+
+///////////////////////////////////////////////
+// d3d hook defs
+///////////////////////////////////////////////
+using FUNC_CreateDevice_t = HRESULT (WINAPI*)( 
+	UINT					     Adapter,
+	D3DDEVTYPE             DeviceType,
+	HWND                   hFocusWindow,
+	DWORD                  BehaviorFlags,
+	D3DPRESENT_PARAMETERS* pPresentationParameters,
+	IDirect3DDevice9**	  ppReturnedDeviceInterface
+);
+
+using FUNC_Direct3DCreate9_t = IDirect3D9* (WINAPI*)( UINT ver );
+
+using FUNC_AdjustWindowRect_t = HRESULT (WINAPI*)( LPRECT lpRect,
+	DWORD  dwStyle,
+	BOOL   bMenu 
+);
+
+using FUNC_Present_t = HRESULT ( WINAPI* )( const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion );
+using FUNC_Reset_t = HRESULT( WINAPI* )( D3DPRESENT_PARAMETERS* pPresentationParameters );
+
+FUNC_CreateDevice_t _pCreateDeviceFunc;
+FUNC_Direct3DCreate9_t _pDirect3DCreate8Func;
+
+HRESULT DETOURED_CreateDevice( UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DDevice9** ppReturnedDeviceInterface )
+{
+	return _pCreateDeviceFunc( Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface );
+}
+
+IDirect3D9* DETOURED_Direct3DCreate9( UINT ver )
+{
+	IDirect3D9* pRet = nullptr;
+
+	return pRet;
+}
+
+HRESULT DETOURED_SwapPresent( IDirect3DSwapChain9* pDevice, CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion, DWORD dwFlags )
+{
+}
+
+static BOOL Compare( const BYTE* pData, const BYTE* bMask, const char* szMask )
+{
+	for( ; *szMask; ++szMask, ++pData, ++bMask )
+	{
+		if( *szMask == 'x' && *pData != *bMask )
+			return 0;
+	}
+
+	return ( *szMask ) == NULL;
+}
+
+static DWORD64 FindPattern( BYTE* bMask, char* szMask )
+{
+	MODULEINFO moduleInfo = { 0 };
+	GetModuleInformation( GetCurrentProcess(), GetModuleHandle( NULL ), &moduleInfo, sizeof( MODULEINFO ) );
+
+	DWORD64 dwBaseAddress = (DWORD64)moduleInfo.lpBaseOfDll;
+	DWORD64 dwModuleSize = (DWORD64)moduleInfo.SizeOfImage;
+
+	for( DWORD64 i = 0; i < dwModuleSize; i++ )
+	{
+		if( Compare( (BYTE*)( dwBaseAddress + i ), bMask, szMask ) )
+			return (DWORD64)( dwBaseAddress + i );
+	}
+
+	return 0;
+}
+
+void ResolutionPatch()
+{
+	DWORD64 cmpAddr1 = FindPattern( (BYTE*)"\x81\x7D\x08\x00\x08\x00\x00\x7E\x07\x33\xC0\xE9\x00\x00\x00\x00", "xxxxxxxxxxxx????" );
+	DWORD64 cmpAddr2 = FindPattern( (BYTE*)"\x81\x7D\x0C\x00\x08\x00\x00\x7E\x07\x33\xC0\xE9\x00\x00\x00\x00", "xxxxxxxxxxxx????" );
+
+	uint16_t* pCmpAddr = 0;
+	uint16_t* pCmpAddr2 = 0;
+
+	if( cmpAddr1 )
+		pCmpAddr = (uint16_t*)( cmpAddr1 + 0x03 );
+	if( cmpAddr2 )
+		pCmpAddr2 = (uint16_t*)( cmpAddr2 + 0x03 );
+
+	if( pCmpAddr && pCmpAddr2 )
+	{
+		DWORD old;
+		//LOG( "Attempting resolution patch.." );
+		// Half the sleeping on the rendering/presenting function (16 to 8):
+		if( cmpAddr1 && VirtualProtect( pCmpAddr, 2, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+			*pCmpAddr = 8192;
+		}
+		else {
+			//LOG( "Could not unlock cmpAddr1 to patch it" );
+		}
+		if( cmpAddr2 && VirtualProtect( pCmpAddr2, 2, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+			*pCmpAddr2 = 8192;
+		}
+		else {
+			//LOG( "Could not unlock cmpAddr2 to patch it" );
+		}
+	}
+	else
+	{
+		//LOG( "Could not find signatures for resolution unlock!" );
+	}
+}
+
+
+///////////////////////////////////////////////////////
+// SoraVoice
+///////////////////////////////////////////////////////
 long SVCALL HOOKED_API CALL_PARAM_DCL
 {	
 	auto rst = ori_api ? ori_api CALL_PARAM : ERR_CODE;
@@ -74,6 +193,7 @@ long SVCALL HOOKED_API CALL_PARAM_DCL
 
 BOOL Initialize(PVOID /*BaseAddress*/) {
 	if (!dll) {
+		ResolutionPatch();
 		dll = LoadLibraryA(OLD_NAME_DLL);
 		if (!dll) {
 			char buff[MAX_PATH_LEN + 1];
