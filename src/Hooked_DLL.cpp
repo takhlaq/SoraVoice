@@ -94,6 +94,7 @@ FUNC_Direct3DCreate9_t _pDirect3DCreate8Func;
 
 HRESULT DETOURED_CreateDevice( UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DDevice9** ppReturnedDeviceInterface )
 {
+	
 	return _pCreateDeviceFunc( Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface );
 }
 

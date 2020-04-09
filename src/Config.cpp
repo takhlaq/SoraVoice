@@ -129,7 +129,7 @@ bool CConfig::LoadConfig(const char * configFn, bool create)
 	GET_VALUE(TurboMultiplier, kv);
 	GET_VALUE_MAXFIX(TurboJoypadButton, kv);
 	GET_VALUE_MAXFIX(TurboKeyboardKey, kv);
-	GET_VALUE_BOOLFIX(FPSPatches, kv);
+	GET_VALUE(FPSTarget, kv);
 
 	GET_VALUE_MAXFIX(ShowInfo, kv);
 	GET_VALUE(FontName, kv);
@@ -170,7 +170,7 @@ bool CConfig::SaveConfig(const char * configFn) const
 	OUTPUT_VALUE(TurboMultiplier, ofs);
 	OUTPUT_VALUE(TurboJoypadButton, ofs);
 	OUTPUT_VALUE(TurboKeyboardKey, ofs);
-	OUTPUT_VALUE(FPSPatches, ofs);
+	OUTPUT_VALUE(FPSTarget, ofs);
 	OUTPUT_VALUE(ShowInfo, ofs);
 	ofs << '\n';
 
@@ -214,7 +214,7 @@ void CConfig::load_default(bool all)
 	SET_DEFAULT(TurboMultiplier);
 	SET_DEFAULT(TurboJoypadButton);
 	SET_DEFAULT(TurboKeyboardKey);
-	SET_DEFAULT(FPSPatches);
+	SET_DEFAULT(FPSTarget);
 
 	SET_DEFAULT(ShowInfo);
 	SET_DEFAULT_STR(FontName);

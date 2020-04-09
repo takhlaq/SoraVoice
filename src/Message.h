@@ -35,7 +35,7 @@ struct CMessage {
 
 	const char * TurboKeyboardKey;
 
-	const char * FPSPatches;
+	const char * FPSTarget;
 
 	const char * ShowInfoSwitch[3];
 
@@ -70,7 +70,7 @@ struct CMessage {
 
 		const char * TurboKeyboardKey;
 
-		const char * FPSPatches;
+		const char * FPSTarget;
 
 		const char * ShowInfo;
 

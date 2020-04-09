@@ -93,7 +93,7 @@ constexpr int KEY_TURBO_UP = DIK_1;
 constexpr int KEY_TURBO_DOWN = DIK_2;
 constexpr int KEY_TURBO_JOYPAD_BUTTON_UP = DIK_4;
 constexpr int KEY_TURBO_KEYBOARD_REBIND = DIK_5;
-constexpr int KEY_TOGGLE_60FPS = DIK_3;
+constexpr int KEY_TOGGLE_FPS_TARGET = DIK_3;
 
 constexpr unsigned INFO_TIME = 3000;
 constexpr unsigned HELLO_TIME = 8000;
@@ -342,8 +342,9 @@ void SoraVoice::Stop()
 	VC_aup->time_autoplay = 0;
 }
 
-void FPSPatches( bool fps60 )
+void FPSPatches( int limit )
 {
+	limit = limit < 0 ? 30 : limit;
 	// 60 FPS Stuff
 
 	// todo: sig for sleepadd1: 83 C1 10 8B 55 F8 89 8A ? ? ? ? 
@@ -352,22 +353,28 @@ void FPSPatches( bool fps60 )
 	// todo: sig for stm2: B8 22 00 00 00 8B 4D F8 
 	// todo: sig for mosp: DC 05 ? ? ? ? 8B 4D 08 D9 99 10 04 00 00
 
-	char* SleepAdd1 = (char*)Pattern::FindPattern( (BYTE*)"\x10\x8B\x55\xF8\x89\x8A\x00\xBE\x00\x00\x8B\x45", "xxxxxxxxxxxx" );
-	char* SleepAdd2 = (char*)Pattern::FindPattern( (BYTE*)"\x10\x8B\x4D\xF8\x89\x81\x00\xBE\x00\x00\x83\x3D", "xxxxxxxxxxxx" );
+	static char* SleepAdd1 = (char*)Pattern::FindPattern( (BYTE*)"\x10\x8B\x55\xF8\x89\x8A\x00\xBE\x00\x00\x8B\x45", "xxxxxxxxxxxx" );
+	static char* SleepAdd2 = (char*)Pattern::FindPattern( (BYTE*)"\x10\x8B\x4D\xF8\x89\x81\x00\xBE\x00\x00\x83\x3D", "xxxxxxxxxxxx" );
 
 	// weird sigs
-	DWORD64 timeMultAddr = Pattern::FindPattern( (BYTE*)"\xB8\x21\x00\x00\x00\x8B\x4D\xF8", "xxxxxxxx" );
-	char* SomeTimeMultiplier1 = 0;
+	static DWORD64 timeMultAddr = Pattern::FindPattern( (BYTE*)"\xB8\x21\x00\x00\x00\x8B\x4D\xF8", "xxxxxxxx" );
+	static char* SomeTimeMultiplier1 = 0;
 	if( timeMultAddr )
 		SomeTimeMultiplier1 = (char*)( timeMultAddr + 1 );
 
-	DWORD64 timeMultAddr2 = Pattern::FindPattern( (BYTE*)"\xB8\x22\x00\x00\x00\x8B\x4D\xF8", "xxxxxxxx" );
-	char* SomeTimeMultiplier2 = 0;
+	static DWORD64 timeMultAddr2 = Pattern::FindPattern( (BYTE*)"\xB8\x22\x00\x00\x00\x8B\x4D\xF8", "xxxxxxxx" );
+	static char* SomeTimeMultiplier2 = 0;
 	if( timeMultAddr2 )
 		SomeTimeMultiplier2 = (char*)( timeMultAddr2 + 1 );
 
-	DWORD64 mapObjSpeedAddr = Pattern::FindPattern( (BYTE*)"\xDC\x05\x00\x00\x00\x00\x8B\x4D\x08\xD9\x99\x10\x04\x00\x00", "xx????xxxxxxxxx" );
-	double** MapObjectSpeedPointer = (double**)( mapObjSpeedAddr ? mapObjSpeedAddr + 0x02 : 0 );
+	static DWORD64 mapObjSpeedAddr = Pattern::FindPattern( (BYTE*)"\xDC\x05\x00\x00\x00\x00\x8B\x4D\x08\xD9\x99\x10\x04\x00\x00", "xx????xxxxxxxxx" );
+	static double** MapObjectSpeedPointer = (double**)( mapObjSpeedAddr ? mapObjSpeedAddr + 0x02 : 0 );
+
+	static DWORD64 shimmerAddr = Pattern::FindPattern( (BYTE*)"\x6A\x04\x6A\x00\x8B\x45\xF4\x8B\x48\x10", "xxxxxxxxxx" );
+	static char* shimmerPtr = ( shimmerAddr ? (char*)( shimmerAddr + 0x01 ) : 0 );
+
+	static DWORD64 fmvFpsLimitAddr = Pattern::FindPattern( (BYTE*)"\x6A\x01\x68\x10\x01\x00\x00", "xxxxxxx" );
+	static char* fmvFpsLimitPtr = ( fmvFpsLimitAddr ? (char*)( fmvFpsLimitAddr + 0x01 ) : 0 );
 
 	//char* SleepAdd1 = (char*)0x7ECD60;
 	//char* SleepAdd2 = (char*)0x7ECDF1;
@@ -380,14 +387,14 @@ void FPSPatches( bool fps60 )
 	DWORD old;
 	// Half the sleeping on the rendering/presenting function (16 to 8):
 	if( SleepAdd1 && VirtualProtect( SleepAdd1, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
-		*SleepAdd1 = (char)( fps60 ? 4 : 16 );
+		*SleepAdd1 = (char)( ( float )( 30.f / ( float )limit ) * 16.f );
 	}
 	else {
 		LOG( "Could not unlock SleepAdd1 to patch it" );
 	}
 
 	if( SleepAdd2 && VirtualProtect( SleepAdd2, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
-		*SleepAdd2 = (char)( fps60 ? 4 : 16 );
+		*SleepAdd2 = (char)( ( 30.f / ( float )limit ) * 16.f );
 	}
 	else {
 		LOG( "Could not unlock SleepAdd2 to patch it" );
@@ -395,24 +402,37 @@ void FPSPatches( bool fps60 )
 
 	// Half this thing that appearantly has great control over the speed of the game (33/34 to 16/17)
 	if( SomeTimeMultiplier1 && VirtualProtect( SomeTimeMultiplier1, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
-		*SomeTimeMultiplier1 = (char)( fps60 ? 16 : 33 );
+		*SomeTimeMultiplier1 = (char)( ( 30.f / (float)limit ) * 33.f );
 	}
 	else {
 		LOG( "Could not unlock SomeTimeMultiplier1 to patch it" );
 	}
 
 	if( SomeTimeMultiplier2 && VirtualProtect( SomeTimeMultiplier2, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
-		*SomeTimeMultiplier2 = (char)( fps60 ? 17 : 34 );
+		*SomeTimeMultiplier2 = (char)( ( 30.f / (float)limit ) * 34.f );
 	}
 	else {
 		LOG( "Could not unlock SomeTimeMultiplier2 to patch it" );
 	}
 
-	static double DoubleOne = 1.0;
-	static double DoubleHalf = 0.5;
+	if( shimmerPtr && VirtualProtect( shimmerPtr, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+		*shimmerPtr = (char)( 0x01 ); // seems any non 0 value that isnt 4? could be catastrophic as i didnt look into what this does beyond making things zoomzoom
+	}
+	else {
+		LOG( "Could not modify shimmer effect" );
+	}
+
+	if( fmvFpsLimitPtr && VirtualProtect( fmvFpsLimitPtr, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
+		*fmvFpsLimitPtr = (char)( 0x00 );
+	}
+	else {
+		LOG( "Could not modify move fps limit" );
+	}
+	static double DoubleOne = ( double )30.f / ( double )limit;
+	
 	// Slow down some map objects to compensate FPS
 	if( MapObjectSpeedPointer && VirtualProtect( MapObjectSpeedPointer, 4, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
-		*MapObjectSpeedPointer = ( fps60 ? &DoubleHalf : &DoubleOne );
+		*MapObjectSpeedPointer = &DoubleOne;
 	}
 	else {
 		LOG( "Could not unlock MapObjectSpeedPointer to patch it" );
@@ -438,6 +458,7 @@ void SoraVoice::Input()
 	auto keys = VC_keys->keys;
 	auto last = VC_keys->last;
 
+	bool needload = false;
 	bool needsave = false;
 	bool needsetvolume = false;
 	int volume_old = Config.Volume;
@@ -464,7 +485,7 @@ void SoraVoice::Input()
 				case KEY_TURBO_DOWN:
 				case KEY_TURBO_JOYPAD_BUTTON_UP:
 				case KEY_TURBO_KEYBOARD_REBIND:
-				case KEY_TOGGLE_60FPS:
+				case KEY_TOGGLE_FPS_TARGET:
 					continue;
 			}
 
@@ -673,14 +694,13 @@ void SoraVoice::Input()
 				turbo = false;
 			}//if(Config.TurboKeyboardKey)
 
-			if (keys[KEY_TOGGLE_60FPS] && !last[KEY_TOGGLE_60FPS]) {
-				Config.FPSPatches = 1 - Config.FPSPatches;
-				needsave = true;
-
-				FPSPatches(Config.FPSPatches);
-
-				if (show_info) {
-					AddInfo(InfoType::Turbo, info_time, Config.FontColor, Message.FPSPatches, Message.Switch[Config.FPSPatches]);
+			if( keys[KEY_TOGGLE_FPS_TARGET] && !last[KEY_TOGGLE_FPS_TARGET] ) {
+				needload = true;
+				Config.LoadConfig( CONFIG_FILE );
+				FPSPatches( Config.FPSTarget );
+				//if( show_info ) 
+				{
+					AddInfo( InfoType::FPSTarget, info_time, Config.FontColor, Message.FPSTarget, Config.FPSTarget );
 				}
 			}
 		}
@@ -837,6 +857,11 @@ void SoraVoice::Input()
 		}
 	}
 
+	if( needload && Config.SaveChange){
+		Config.LoadConfig(CONFIG_FILE);
+		LOG("Config file loaded");
+	}
+
 	if (needsave && Config.SaveChange) {
 		Config.SaveConfig(CONFIG_FILE);
 		LOG("Config file saved");
@@ -970,9 +995,8 @@ bool SoraVoice::Init() {
 
 		subhook_install( GetSpeedMultiplier_hook );
 
-		if( Config.FPSPatches ) {
-			FPSPatches( true );
-		}
+
+		FPSPatches( Config.FPSTarget );
 	}
 	
 	if( VC_isZa ) {

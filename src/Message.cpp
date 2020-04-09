@@ -101,7 +101,7 @@ bool CMessage::LoadMessage(const char * resName)
 	SET_MESSAGE(top, TurboMultiplier);
 	SET_MESSAGE(top, TurboJoypadButton);
 	SET_MESSAGE(top, TurboKeyboardKey);
-	SET_MESSAGE(top, FPSPatches);
+	SET_MESSAGE(top, FPSTarget);
 	SET_MESSAGE(top, ShowInfo);
 	SET_MESSAGE(top, ShowInfoAuto);
 
@@ -124,7 +124,7 @@ bool CMessage::LoadMessage(const char * resName)
 	SET_MESSAGE_CMT(top, TurboMultiplier);
 	SET_MESSAGE_CMT(top, TurboJoypadButton);
 	SET_MESSAGE_CMT(top, TurboKeyboardKey);
-	SET_MESSAGE_CMT(top, FPSPatches);
+	SET_MESSAGE_CMT(top, FPSTarget);
 	SET_MESSAGE_CMT(top, ShowInfo);
 	SET_MESSAGE_CMT(top, FontName);
 	SET_MESSAGE_CMT(top, FontColor);

@@ -47,7 +47,7 @@ struct CConfig
 	DEFINE_CONFIG(TurboMultiplier, 2);
 	DEFINE_CONFIG_WMAX(TurboJoypadButton, 0, 32);
 	DEFINE_CONFIG_WMAX(TurboKeyboardKey, DIK_LCONTROL, DIK_MEDIASELECT);
-	DEFINE_CONFIG(FPSPatches, 1);
+	DEFINE_CONFIG(FPSTarget, 60);
 	DEFINE_CONFIG_WMAX(ShowInfo, ShowInfo_On, 2);
 
 	DEFINE_STRCONFIG(FontName, "Microsoft Yahei", 63);
