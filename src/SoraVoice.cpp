@@ -370,8 +370,8 @@ void FPSPatches( int limit )
 	static DWORD64 mapObjSpeedAddr = Pattern::FindPattern( (BYTE*)"\xDC\x05\x00\x00\x00\x00\x8B\x4D\x08\xD9\x99\x10\x04\x00\x00", "xx????xxxxxxxxx" );
 	static double** MapObjectSpeedPointer = (double**)( mapObjSpeedAddr ? mapObjSpeedAddr + 0x02 : 0 );
 
-	static DWORD64 shimmerAddr = Pattern::FindPattern( (BYTE*)"\x6A\x04\x6A\x00\x8B\x45\xF4\x8B\x48\x10", "xxxxxxxxxx" );
-	static char* shimmerPtr = ( shimmerAddr ? (char*)( shimmerAddr + 0x01 ) : 0 );
+	static DWORD64 shimmerAddr = Pattern::FindPattern( (BYTE*)"\x68\xA0\x00\x00\x00\xFF\x15\x00\x00\x00\x00\x98\x25\x00\xF0\x00\x00\x74\x0D\xEB\x06", "xxxxxxx????xxxxxxxxxx" );
+	static uint16_t* shimmerPtr = ( shimmerAddr ? (uint16_t*)( shimmerAddr + 0x11 ) : 0 );
 
 	static DWORD64 fmvFpsLimitAddr = Pattern::FindPattern( (BYTE*)"\x6A\x01\x68\x10\x01\x00\x00", "xxxxxxx" );
 	static char* fmvFpsLimitPtr = ( fmvFpsLimitAddr ? (char*)( fmvFpsLimitAddr + 0x01 ) : 0 );
@@ -416,7 +416,7 @@ void FPSPatches( int limit )
 	}
 
 	if( shimmerPtr && VirtualProtect( shimmerPtr, 1, PAGE_EXECUTE_READWRITE, &old ) != 0 ) {
-		*shimmerPtr = (char)( 0x01 ); // seems any non 0 value that isnt 4? could be catastrophic as i didnt look into what this does beyond making things zoomzoom
+		*shimmerPtr = (uint16_t)( 0x9090 ); // just nop it
 	}
 	else {
 		LOG( "Could not modify shimmer effect" );
