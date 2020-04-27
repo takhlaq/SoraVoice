@@ -441,7 +441,7 @@ void FPSPatches( int limit )
 
 void SoraVoice::JoypadInput(DIJOYSTATE* joypadState)
 {
-	if ( (joypadState->lZ >= (32768 + 100) || joypadState->lZ <= (32768 - 100)) || (Config.TurboJoypadButton > 0 && joypadState->rgbButtons[Config.TurboJoypadButton - 1]))
+	if ((Config.TurboJoypadButton > 0 && joypadState->rgbButtons[Config.TurboJoypadButton - 1]))
 	{
 		joypadTurbo = true;
 	}
