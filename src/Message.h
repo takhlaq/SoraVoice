@@ -32,6 +32,8 @@ struct CMessage {
 	const char * TurboMultiplier;
 
 	const char * TurboJoypadButton;
+  
+	const char * TurboJoypadTriggers;
 
 	const char * TurboKeyboardKey;
 
@@ -67,6 +69,8 @@ struct CMessage {
 		const char * TurboMultiplier;
 
 		const char * TurboJoypadButton;
+
+		const char * TurboJoypadTriggers;
 
 		const char * TurboKeyboardKey;
 
